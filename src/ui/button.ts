@@ -1,6 +1,6 @@
 import type { ButtonConfig } from '../types';
 import { asset } from '../util';
-import { play } from '../audio/player';
+import { play, stopCurrent, isPlaying, subscribe } from '../audio/player';
 
 /**
  * Build a single soundboard button.
@@ -26,6 +26,8 @@ export function createButton(cfg: ButtonConfig): HTMLElement {
   btn.appendChild(title);
 
   if (cfg.image) {
+    // Image fills the whole button; title + indicator are overlaid on top.
+    btn.classList.add('has-image');
     const img = document.createElement('img');
     img.className = 'sb-button__img';
     img.src = asset(cfg.image);
@@ -34,10 +36,26 @@ export function createButton(cfg: ButtonConfig): HTMLElement {
     btn.appendChild(img);
   }
 
+  // Play-indicator pinned to the bottom: an equalizer that animates while this
+  // button's sound is playing (see .sb-button__indicator in styles.css).
+  const indicator = document.createElement('span');
+  indicator.className = 'sb-button__indicator';
+  indicator.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 3; i++) indicator.appendChild(document.createElement('i'));
+  btn.appendChild(indicator);
+
+  // Click toggles: start this sound, or stop it if it is the one playing.
   btn.addEventListener('click', () => {
-    btn.classList.add('is-playing');
-    window.setTimeout(() => btn.classList.remove('is-playing'), 300);
-    void play(cfg.sound);
+    if (isPlaying(cfg.sound)) {
+      stopCurrent();
+    } else {
+      void play(cfg.sound);
+    }
+  });
+
+  // Keep the indicator in sync with the active source (start / stop / end).
+  subscribe(() => {
+    btn.classList.toggle('is-playing', isPlaying(cfg.sound));
   });
 
   return btn;

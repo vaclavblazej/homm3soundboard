@@ -30,6 +30,13 @@ function loadApi(): Promise<void> {
 export class YouTubePlayer {
   private ready = new Map<string, Promise<YT.Player>>();
   private endTimer: number | null = null;
+  // Callback for the clip currently playing; invoked once when it ends on its
+  // own. Only one clip plays at a time, so a single field suffices.
+  private onEnded: (() => void) | null = null;
+  // Looping state for the clip currently playing: when `loop` is set, reaching
+  // the end seeks back to `loopStart` and keeps playing instead of finishing.
+  private loop = false;
+  private loopStart = 0;
 
   private host(): HTMLElement {
     const el = document.getElementById('yt-host');
@@ -61,6 +68,18 @@ export class YouTubePlayer {
             },
             events: {
               onReady: () => resolve(player),
+              onStateChange: (e) => {
+                // The video reached its natural end (no explicit `end` clip):
+                // loop back to the start, or finish if not looping.
+                if (e.data === YT.PlayerState.ENDED) {
+                  if (this.loop) {
+                    player.seekTo(this.loopStart, true);
+                    player.playVideo();
+                  } else {
+                    this.finish();
+                  }
+                }
+              },
             },
           });
         }),
@@ -77,12 +96,26 @@ export class YouTubePlayer {
     }
   }
 
-  /** Returns a stop() callback for the clip just started. */
-  async play(source: SoundYouTubeSource): Promise<() => void> {
+  /** Playback finished on its own: stop the timer and notify the caller once. */
+  private finish(): void {
+    this.clearEndTimer();
+    const cb = this.onEnded;
+    this.onEnded = null;
+    cb?.();
+  }
+
+  /**
+   * Starts playback and returns a stop() callback. `onEnded` fires when the
+   * clip reaches its end (or the video ends) on its own — not on stop().
+   */
+  async play(source: SoundYouTubeSource, onEnded: () => void): Promise<() => void> {
     const player = await this.getPlayer(source.id);
     const start = source.start ?? 0;
 
     this.clearEndTimer();
+    this.onEnded = onEnded;
+    this.loop = source.loop ?? false;
+    this.loopStart = start;
     player.seekTo(start, true);
     player.playVideo();
 
@@ -90,15 +123,22 @@ export class YouTubePlayer {
       const end = source.end;
       this.endTimer = window.setInterval(() => {
         if (player.getCurrentTime() >= end) {
-          player.pauseVideo();
-          this.clearEndTimer();
+          // Reached the clip's end: loop back to the start, or finish.
+          if (this.loop) {
+            player.seekTo(start, true);
+          } else {
+            player.pauseVideo();
+            this.finish();
+          }
         }
       }, 100);
     }
 
     return () => {
-      player.pauseVideo();
+      this.onEnded = null;
+      this.loop = false;
       this.clearEndTimer();
+      player.pauseVideo();
     };
   }
 }

@@ -10,8 +10,11 @@ import { asset } from '../util';
 export class FilePlayer {
   private cache = new Map<string, HTMLAudioElement>();
 
-  /** Returns a stop() callback for the sound just started. */
-  async play(source: SoundFileSource): Promise<() => void> {
+  /**
+   * Starts playback and returns a stop() callback. `onEnded` fires when the
+   * clip reaches its end on its own (not when stop() is called).
+   */
+  async play(source: SoundFileSource, onEnded: () => void): Promise<() => void> {
     let audio = this.cache.get(source.src);
     if (!audio) {
       audio = new Audio(asset(source.src));
@@ -19,15 +22,18 @@ export class FilePlayer {
       this.cache.set(source.src, audio);
     }
 
-    audio.currentTime = 0;
+    const el = audio;
+    el.loop = source.loop ?? false;
+    el.onended = onEnded;
+    el.currentTime = 0;
     try {
-      await audio.play();
+      await el.play();
     } catch (err) {
       console.error(`Failed to play file "${source.src}":`, err);
     }
 
-    const el = audio;
     return () => {
+      el.onended = null;
       el.pause();
       el.currentTime = 0;
     };

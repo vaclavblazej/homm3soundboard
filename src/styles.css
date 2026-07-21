@@ -81,7 +81,20 @@ body {
   justify-content: start;
 }
 
+/*
+  A group is one atomic item in the section grid (its span is set inline) that
+  is itself a grid using the same unit + gap. Its buttons therefore align with
+  the outer grid but travel together as a block when the layout wraps.
+*/
+.group {
+  display: grid;
+  grid-auto-rows: var(--unit);
+  gap: var(--gap);
+  grid-auto-flow: row dense;
+}
+
 .sb-button {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -122,12 +135,136 @@ body {
   word-break: break-word;
 }
 
+/* Text-only tiles (no image): center the label in the tile. */
+.sb-button:not(.has-image) {
+  justify-content: center;
+}
+
 /* Image: fills the remaining space below the title without distortion. */
 .sb-button__img {
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
   object-fit: contain;
+}
+
+/* ---------------------------------------------------------------------------
+   Image buttons: the picture becomes the full button background and the title
+   (plus the play-indicator) are overlaid at the bottom over a darkening scrim.
+--------------------------------------------------------------------------- */
+.sb-button.has-image {
+  padding: 0;
+  justify-content: flex-end;
+  gap: 0;
+}
+
+.sb-button.has-image .sb-button__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.sb-button.has-image:hover .sb-button__img {
+  transform: scale(1.06);
+}
+
+/* Bottom-weighted gradient so overlaid text stays legible over any image. */
+.sb-button.has-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.35) 32%,
+    rgba(0, 0, 0, 0) 60%
+  );
+}
+
+/* Lift title + indicator above the image and the scrim. */
+.sb-button.has-image .sb-button__title,
+.sb-button.has-image .sb-button__indicator {
+  position: relative;
+  z-index: 1;
+}
+
+.sb-button.has-image .sb-button__title {
+  padding: 4px 6px 5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.sb-button.has-image .sb-button__indicator {
+  padding-bottom: 5px;
+}
+
+/* The image sits above the button's own inset glow, so draw the playing ring
+   on the scrim (which paints above the image) instead. */
+.sb-button.has-image.is-playing::after {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/*
+  Play-indicator: three equalizer bars pinned to the bottom of the button.
+  Hidden (collapsed) until the button's sound is playing, then it animates.
+*/
+.sb-button__indicator {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  height: 0;
+  margin-top: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: height 0.15s ease, margin-top 0.15s ease, opacity 0.15s ease;
+}
+
+.sb-button.is-playing .sb-button__indicator {
+  height: 10px;
+  margin-top: 2px;
+  opacity: 1;
+}
+
+.sb-button__indicator i {
+  width: 3px;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: bottom center;
+  transform: scaleY(0.3);
+}
+
+.sb-button.is-playing .sb-button__indicator i {
+  animation: sb-eq 0.7s ease-in-out infinite;
+}
+
+.sb-button.is-playing .sb-button__indicator i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.sb-button.is-playing .sb-button__indicator i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes sb-eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-button.is-playing .sb-button__indicator i {
+    animation: none;
+    transform: scaleY(1);
+  }
 }
 
 /*
