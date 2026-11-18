@@ -18,6 +18,7 @@ npm run dev       # dev server + HMR
 npm run build     # tsc --noEmit && vite build → dist/
 npm run typecheck # tsc --noEmit
 npm run preview   # serve built dist/
+npm run check:youtube # verify every YouTube id in the config still exists + is embeddable
 ```
 
 ## Where things live
@@ -36,6 +37,8 @@ npm run preview   # serve built dist/
 | `src/styles.css`            | Grid layout + theming.                                   |
 | `public/{img,sfx}/`         | Bundled images / audio files.                            |
 | `.github/workflows/deploy.yml` | Builds and publishes `dist/` to Pages on push to `main`. |
+| `scripts/check-youtube.ts`  | oEmbed liveness check for all YouTube ids (Node ≥22.18 runs it as-is). |
+| `.github/workflows/check-youtube.yml` | Runs the check weekly, on demand, and on PRs touching the config. |
 
 ## Key concepts
 
